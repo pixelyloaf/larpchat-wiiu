@@ -2,6 +2,8 @@
 #include "chat.h"
 #include "image.h"
 
+std::string authToken = "";
+
 static bool SetNonBlocking(int sock)
 {
     if (sock < 0) return false;
@@ -140,103 +142,147 @@ void TryReceive(int *sock, SDL_Renderer* renderer, int fontSize, SDL_Color textC
     }
 }
 
-std::string send_api_request(const std::string& jsonBody)
+std::string send_post_request(const std::string& endpoint, const std::string& body)
 {
     int sock = ConnectToHTTPServer();
-    if (sock < 0) return "";
 
-    int bodyLen = jsonBody.length();
+    if (sock < 0)
+        return "";
 
     std::string request =
-        "POST /api HTTP/1.1\r\n"
-        "Host: 127.0.0.1:3072\r\n"
-        "Content-Type: application/json\r\n"
-        "Content-Length: " + std::to_string(jsonBody.size()) + "\r\n"
+        "POST " + endpoint + " HTTP/1.1\r\n"
+        "Host: " + std::string(SERVER_IP) + ":" + std::to_string(SERVER_PORT_HTTP) + "\r\n"
+        "User-Agent: aurorachat Wii U\r\n"
+        "Content-Type: text/plain\r\n"
+        "auth: " + authToken + "\r\n"
+        "Content-Length: " + std::to_string(body.size()) + "\r\n"
         "Connection: close\r\n"
         "\r\n" +
-        jsonBody;
+        body;
 
-    // ---- Send ----
-    int totalSent = 0;
-    int reqLen = request.size();
+    send(sock, request.c_str(), request.size(), 0);
 
-    while (totalSent < reqLen) {
-        int sent = send(sock, request.c_str() + totalSent, reqLen - totalSent, 0);
-        if (sent <= 0) {
-            close(sock);
-            return "";
-        }
-        totalSent += sent;
-    }
-
-    // ---- Read response ----
     std::string response;
+
     char buffer[1024];
 
     int r;
-    while ((r = recv(sock, buffer, sizeof(buffer) - 1, 0)) > 0) {
-        buffer[r] = '\0';
-        response += buffer;
+
+    while ((r = recv(sock, buffer, sizeof(buffer), 0)) > 0) {
+        response.append(buffer, r);
     }
 
     close(sock);
+
+    size_t bodyPos = response.find("\r\n\r\n");
+
+    if (bodyPos != std::string::npos) {
+        response = response.substr(bodyPos + 4);
+    }
+
     return response;
 }
 
-std::string json_escape(const char* input)
+bool create_account(const std::string& username, const std::string& password)
 {
-    std::string out;
-    for (const char* p = input; *p; ++p) {
-        switch (*p) {
-            case '\"': out += "\\\""; break;
-            case '\\': out += "\\\\"; break;
-            case '\n': out += "\\n"; break;
-            case '\r': out += "\\r"; break;
-            case '\t': out += "\\t"; break;
-            default: out += *p; break;
+    std::string body =
+        username + "|" + password;
+
+    std::string response =
+        send_post_request("/api/signup", body);
+
+    if (response.empty())
+        return false;
+
+    while (!response.empty() &&
+            (response.back() == '\n' ||
+            response.back() == '\r' ||
+            response.back() == ' '))
+    {
+        response.pop_back();
+    }
+
+    if (!response.empty() && response.back() == '|')
+        response.pop_back();
+
+    authToken = response;
+
+    return true;
+}
+
+bool login_account(const std::string& username, const std::string& password)
+{
+    std::string body =
+        username + "|" + password;
+
+    std::string response =
+        send_post_request("/api/login", body);
+
+    if (response.empty())
+        return false;
+
+    while (!response.empty() &&
+            (response.back() == '\n' ||
+            response.back() == '\r' ||
+            response.back() == ' '))
+    {
+        response.pop_back();
+    }
+
+    if (!response.empty() && response.back() == '|')
+        response.pop_back();
+
+    authToken = response;
+
+    return true;
+}
+
+void append_room(const char* name, const char* desc)
+{
+    if (roomCount < 100) {
+        strncpy(rooms[roomCount].name, name, sizeof(rooms[roomCount].name));
+        strncpy(rooms[roomCount].description, desc, sizeof(rooms[roomCount].description));
+        roomCount++;
+    }
+}
+
+void fetch_rooms()
+{
+    roomCount = 0;
+
+    std::string response =
+        send_post_request("/api/rooms", "");
+
+    if (response.empty())
+        return;
+
+    char buf[2048];
+
+    strncpy(buf, response.c_str(), sizeof(buf) - 1);
+
+    buf[sizeof(buf) - 1] = '\0';
+
+    char* countStr = strtok(buf, "|");
+
+    if (!countStr)
+        return;
+
+    int roomsToAdd = atoi(countStr);
+
+    for (int i = 0; i < roomsToAdd; i++) {
+
+        char* roomName = strtok(NULL, "|");
+
+        if (roomName) {
+            append_room(roomName, "");
         }
     }
-    return out;
 }
 
-std::string connect_to_api()
-{
-    std::string body = "{\"cmd\":\"CONNECT\",\"version\":\"" +
-    clientVersion +
-    "\",\"platform\":\"Wii U\"}";
-    return send_api_request(body);
-}
-
-std::string make_account(const char* username, const char* password)
+void send_chat(const std::string& room, const std::string& message)
 {
     std::string body =
-        "{\"cmd\":\"MAKEACC\",\"username\":\"" +
-        json_escape(username) +
-        "\",\"password\":\"" +
-        json_escape(password) +
-        "\"}";
+        message + "|" + room + "|";
 
-    return send_api_request(body);
-}
-
-std::string login_account(const char* username, const char* password)
-{
-    std::string body =
-        "{\"cmd\":\"LOGINACC\",\"username\":\"" +
-        json_escape(username) +
-        "\",\"password\":\"" +
-        json_escape(password) +
-        "\"}";
-
-    return send_api_request(body);
-}
-
-std::string send_chat(const char* message)
-{
-    std::string body =
-        "{\"cmd\":\"CHAT\",\"content\":\"" +
-        json_escape(message) +
-        "\",\"platform\":\"Wii U\"}";
-
-    return send_api_request(body);
+    send_post_request("/api/chat", body);
 }

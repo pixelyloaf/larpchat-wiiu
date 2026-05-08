@@ -4,15 +4,19 @@
 std::vector<ChatLine> chatLines;
 int chatPosY = 0;
 
+Room rooms[100];
+int roomCount = 0;
+int selectedRoom = 0;
+
 void AddChatLine(SDL_Renderer* renderer,
-                 const std::string& username,
-                 const std::string& message,
-                 SDL_Texture* avatar,
-                 int nameFontSize,
-                 int messageFontSize,
-                 SDL_Color nameColor,
-                 SDL_Color messageColor,
-                 int maxWidth)
+                const std::string& username,
+                const std::string& message,
+                SDL_Texture* avatar,
+                int nameFontSize,
+                int messageFontSize,
+                SDL_Color nameColor,
+                SDL_Color messageColor,
+                int maxWidth)
 {
     const int avatarSize = 128;
     const int avatarPadding = 8;
@@ -111,11 +115,11 @@ void FreeChatTextures()
 }
 
 void RebuildChatTextures(SDL_Renderer* renderer,
-                         int nameFontSize,
-                         int messageFontSize,
-                         SDL_Color nameColor,
-                         SDL_Color messageColor,
-                         int maxWidth)
+                        int nameFontSize,
+                        int messageFontSize,
+                        SDL_Color nameColor,
+                        SDL_Color messageColor,
+                        int maxWidth)
 {
     for (auto& line : chatLines)
     {

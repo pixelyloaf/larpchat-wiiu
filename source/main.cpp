@@ -13,16 +13,20 @@
 #include "image.h"
 #include "net.h"
 #include "input.h"
-#include "button.h"
-#include "theme.h"
 #include "storage.h"
 
 // Used in multiple files, so declared here
 // -------------------------
-std::string clientVersion = "4.5";
+std::string clientVersion = "6.0";
 
 std::string username = "";
 std::string password = "";
+
+textSendType currentTextSendType = type_none;
+
+std::string currentRoom = "general";
+
+Scene scene = SELECTION_MENU;
 
 int fontSize = 48;
 int maxWidth = 1920 - 40;
@@ -37,15 +41,12 @@ SDL_Renderer *tvRenderer = NULL;
 SDL_Renderer *drcRenderer = NULL;
 
 // TV colors
-SDL_Color tvBackgroundColor;
-SDL_Color tvTextColor;
+SDL_Color tvBackgroundColor = {0, 0, 0, 255};
+SDL_Color tvTextColor = {255, 255, 255, 255};
 
 // DRC colors
-SDL_Color drcBackgroundColor;
-SDL_Color drcTextColor;
-
-// Logo
-SDL_Color logoColor;
+SDL_Color drcBackgroundColor = {0, 0, 0, 255};
+SDL_Color drcTextColor = {255, 255, 255, 255};
 // -------------------------
 
 // -----------------------
@@ -67,10 +68,6 @@ int main(int argc, char **argv)
 
     // Keyboard Text Input Buffer
     std::string textBuffer = "";
-
-    bool showpassword = false;
-
-    connect_to_api();
 
     char input[512] = "";
 
@@ -110,91 +107,20 @@ int main(int argc, char **argv)
 
     SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
 
-    ApplyTheme(0);
-
     if (LoadLogin(username, password)) {
-        std::string reply = login_account(username.c_str(), password.c_str());
-
-        if (reply.find("\"data\":\"LOGIN_OK\"") != std::string::npos) {
-            scene = "chat";
+        if (login_account(username.c_str(), password.c_str())) {
+            fetch_rooms();
+            scene = ROOMS_LIST;
         } else {
-            scene = "selection_menu";
+            scene = SELECTION_MENU;
         }
     } else {
-        scene = "selection_menu";
+        scene = SELECTION_MENU;
     }
 
-    SDL_Texture* aucIcons[5];
-    SDL_Texture* aucIconsSelected[5];
-    SDL_Rect aucIconsRect[5];
-    int selectedIcon = 0;
-
-    const int screenHeight = 480;
-    const int iconCount = 5;
-    const int padding = 20; // top + bottom padding
-    const int spacing = 10; // space between icons
-
-    // Calculate max height available for icons
-    int totalSpacing = spacing * (iconCount - 1);
-    int availableHeight = screenHeight - padding * 2 - totalSpacing;
-
-    // Size each icon to fit
-    int iconSize = availableHeight / iconCount;
-
-    for (int i = 0; i < iconCount; i++) {
-        std::string base = "romfs:/res/auc_icons/1x/Asset " + std::to_string(i + 1);
-
-        aucIcons[i] = IMG_LoadTexture(drcRenderer, (base + ".png").c_str());
-        aucIconsSelected[i] = IMG_LoadTexture(drcRenderer, (base + "_selected.png").c_str());
-
-        aucIconsRect[i].x = 0; // LEFT ALIGN
-        aucIconsRect[i].y = padding + i * (iconSize + spacing);
-        aucIconsRect[i].w = iconSize;
-        aucIconsRect[i].h = iconSize;
-    }
-
-    // Discord QR Code Texture
-    SDL_Texture* discordTexture = LoadImage(drcRenderer, "romfs:/res/QRCode_Discord.png");
-
-    int originalW, originalH;
-    SDL_QueryTexture(discordTexture, NULL, NULL, &originalW, &originalH);
-
-    float discordScale = 0.75f;
-
-    SDL_Rect discordRect;
-    discordRect.x = 20;
-    discordRect.y = 305;
-    discordRect.w = originalW * discordScale;
-    discordRect.h = originalH * discordScale;
-
-    // Button Texture
-    SDL_Texture* buttonTexture = IMG_LoadTexture(drcRenderer, "romfs:/res/largebutton.png");
-    int bw, bh;
-    SDL_QueryTexture(buttonTexture, NULL, NULL, &bw, &bh);
-
-    // Buttons
-    SDL_Rect button_middle_top = { 0, 50, 0, 0 };
-    button_middle_top.w = bw;
-    button_middle_top.h = bh;
-    button_middle_top.x = (854 - button_middle_top.w) / 2;
-
-    SDL_Rect button_middle_bottom = { 0, 0, 0, 0 };
-    button_middle_bottom.w = bw;
-    button_middle_bottom.h = bh;
-    button_middle_bottom.x = (854 - button_middle_bottom.w) / 2;
-    button_middle_bottom.y = (480 - 50) / 2;
-
-    SDL_Rect button_right_bottom = { 854, 480, 0, 0 };
-    button_right_bottom.w = bw;
-    button_right_bottom.h = bh;
-    button_right_bottom.x = 854 - button_right_bottom.w;
-    button_right_bottom.y = 480 - button_right_bottom.h;
-
-    SDL_Rect button_left_bottom = { 854, 480, 0, 0 };
-    button_left_bottom.w = bw;
-    button_left_bottom.h = bh;
-    button_left_bottom.x = 0;
-    button_left_bottom.y = 480 - button_left_bottom.h;
+    // Background texture
+    SDL_Texture* bgTexture = LoadImage(tvRenderer, "romfs:/res/bg.png");
+    SDL_Texture* bgTextureDRC = LoadImage(drcRenderer, "romfs:/res/bg.png");
 
     Uint32 lastTicks = 0;
     const int AXIS_DEADZONE = 8000;  // deadzone for joystick
@@ -213,9 +139,26 @@ int main(int argc, char **argv)
     SDL_WiiUSysWMEventType Keyboard_Ok = SDL_WIIU_SYSWM_SWKBD_OK_FINISH_EVENT;
     SDL_WiiUSysWMEventType Keyboard_Cancel = SDL_WIIU_SYSWM_SWKBD_CANCEL_EVENT;
 
+    const char* selectionMenu[] = {
+        "Create Account",
+        "Log In"
+    };
+
+    const char* signUpMenu[] = {
+        "Enter a username",
+        "Enter a password",
+        "Create account"
+    };
+
+    const char* signInMenu[] = {
+        "Enter your username",
+        "Enter your password",
+        "Log In"
+    };
+
     lastTicks = SDL_GetTicks();
     while (WHBProcIsRunning()) {
-        if (scene == "chat") {
+        if (scene == CHAT) {
             Uint32 now = SDL_GetTicks();
             float deltaSec = (now - lastTicks) / 1000.0f;
             lastTicks = now;
@@ -244,159 +187,6 @@ int main(int argc, char **argv)
         while (SDL_PollEvent(&event)) {
             handle_event(event);
 
-            if (event.type == SDL_MOUSEBUTTONDOWN &&
-                event.button.button == SDL_BUTTON_LEFT) {
-
-                int mx = event.button.x;
-                int my = event.button.y;
-
-                for (int i = 0; i < 5; i++) {
-                    if (PointInRect(mx, my, aucIconsRect[i])) {
-                        selectedIcon = i;
-
-                        // Handle each icon
-                        switch (i) {
-                            case 0:
-                                scene = "chat";
-                                break;
-                            case 1:
-                                rulesPage = 1;
-                                break;
-                            case 2:
-                                // Does nothing yet
-                                break;
-                            case 3:
-                                // Does nothing yet
-                                break;
-                            case 4:
-                                // Does nothing yet
-                                break;
-                        }
-                    }
-                }
-
-                if (PointInRect(mx, my, button_middle_top )) {
-                    if (scene == "selection_menu") scene = "sign_up";
-                    else if (scene == "sign_up" || scene == "sign_in") {
-                        textSendType = "username";
-                        SDL_WiiUSetSWKBDInitialText(username.c_str());
-                        SDL_WiiUSetSWKBDHintText("Enter a username...");
-                        SDL_StartTextInput();
-                    }
-                    else if (scene == "sign_up_confirm") {
-                        std::string reply = make_account(username.c_str(), password.c_str());
-
-                        if (reply.find("\"data\":\"USR_CREATED\"") != std::string::npos) {
-                            serverResponse.clear();
-
-                            SaveLogin(username, password);
-
-                            scene = "register_success";
-                        }
-                        else if (reply.find("\"data\":\"USR_IN_USE\"") != std::string::npos) {
-                            serverResponse.clear();
-                            failedReason = "Username already in use.";
-                            scene = "failed";
-                        }
-                        else {
-                            // Extract the "data" value
-                            size_t start = reply.find("\"data\":\"");
-                            size_t end = reply.find("\"", start + 8);
-                            if (start != std::string::npos && end != std::string::npos) {
-                                serverResponse = reply.substr(start + 8, end - (start + 8));
-                            }
-                            else {
-                                serverResponse = "Unable to parse server response.";
-                            }
-
-                            failedReason = "An Unknown Error Occurred.";
-                            scene = "failed";
-                        }
-                    }
-                    else if (scene == "sign_in_confirm") {
-                        std::string reply = login_account(username.c_str(), password.c_str());
-
-                        if (reply.find("\"data\":\"LOGIN_OK\"") != std::string::npos) {
-                            serverResponse.clear();
-
-                            SaveLogin(username, password);
-
-                            scene = "chat";
-                        }
-                        else if (reply.find("\"data\":\"LOGIN_FAKE_ACC\"") != std::string::npos) {
-                            serverResponse.clear();
-                            failedReason = "User not found.";
-                            scene = "failed";
-                        }
-                        else if (reply.find("\"data\":\"LOGIN_WRONG_PASS\"") != std::string::npos) {
-                            serverResponse.clear();
-                            failedReason = "Incorrect password.";
-                            scene = "failed";
-                        }
-                        else if (reply.find("\"data\":\"frick you you're BANNED\"") != std::string::npos) {
-                            serverResponse.clear();
-                            failedReason = "Banned User.";
-                            scene = "failed";
-                        }
-                        else {
-                            // Extract the "data" value
-                            size_t start = reply.find("\"data\":\"");
-                            size_t end = reply.find("\"", start + 8);
-                            if (start != std::string::npos && end != std::string::npos) {
-                                serverResponse = reply.substr(start + 8, end - (start + 8));
-                            }
-                            else {
-                                serverResponse = "Unable to parse server response.";
-                            }
-
-                            failedReason = "An Unknown Error Occurred.";
-                            scene = "failed";
-                        }
-                    }
-                }
-                else if (PointInRect(mx, my, button_middle_bottom)) {
-                    if (scene == "selection_menu") scene = "sign_in";
-                    else if (scene == "sign_up" || scene == "sign_in") {
-                        textSendType = "password";
-                        SDL_WiiUSetSWKBDInitialText(password.c_str());
-                        SDL_WiiUSetSWKBDHintText("Enter a password...");
-                        if (!showpassword) SDL_WiiUSetSWKBDPasswordMode(SDL_WIIU_SWKBD_PASSWORD_MODE_HIDE);
-                        else SDL_WiiUSetSWKBDPasswordMode(SDL_WIIU_SWKBD_PASSWORD_MODE_SHOW);
-                        SDL_StartTextInput();
-                    }
-                    else if (scene == "sign_up_confirm" || scene == "sign_in_confirm") {
-                        showpassword = !showpassword;
-                    }
-                }
-                else if (PointInRect(mx, my, button_right_bottom)) {
-                    if (scene == "sign_up") {
-                        if (username.empty() || password.empty()) {
-                            failedReason = "Username and password cannot be empty.";
-                            scene = "failed";
-                        }
-                        else {
-                            scene = "sign_up_confirm";
-                        }
-                    }
-                    else if (scene == "sign_in") {
-                        if (username.empty() || password.empty()) {
-                            failedReason = "Username and password cannot be empty.";
-                            scene = "failed";
-                        }
-                        else {
-                            scene = "sign_in_confirm";
-                        }
-                    }
-                }
-                else if (PointInRect(mx, my, button_left_bottom)) {
-                    if (scene == "sign_up" || scene == "sign_in" || scene == "failed" || scene == "register_success") {
-                        scene = "selection_menu";
-                    }
-                    else if (scene == "sign_up_confirm") scene = "sign_up";
-                    else if (scene == "sign_in_confirm") scene = "sign_in";
-                }
-            }
-
             if (event.type == SDL_TEXTINPUT)
                 textBuffer += event.text.text;
 
@@ -404,20 +194,20 @@ int main(int argc, char **argv)
                 Keyboard_Event = event.syswm.msg->msg.wiiu.event;
                 if (Keyboard_Event == Keyboard_Ok || Keyboard_Event == Keyboard_Cancel) {
                     if (Keyboard_Event == Keyboard_Ok) {
-                        if (textSendType == "message" && !textBuffer.empty()) {
+                        if (currentTextSendType == type_message && !textBuffer.empty()) {
                             strncpy(input, textBuffer.c_str(), sizeof(input) - 1);
                             input[sizeof(input) - 1] = '\0';
-                            send_chat(input);
+                            send_chat(currentRoom, input);
                         }
-                        else if (textSendType == "username") {
+                        else if (currentTextSendType == type_username) {
                             username = textBuffer;
                         }
-                        else if (textSendType == "password") {
+                        else if (currentTextSendType == type_password) {
                             password = textBuffer;
                         }
                     }
                     textBuffer.clear();
-                    textSendType.clear();
+                    currentTextSendType = type_none;
                     SDL_StopTextInput();
                 }
             }
@@ -426,137 +216,185 @@ int main(int argc, char **argv)
         // Handle incoming messages
         TryReceive(&sock, tvRenderer, fontSize, tvTextColor, maxWidth);
 
-        UpdateThemeEffects();
-
         // Render TV Screen
         if (tvRenderer) {
-            SDL_SetRenderDrawColor(tvRenderer, tvBackgroundColor.r, tvBackgroundColor.g, tvBackgroundColor.b, tvBackgroundColor.a);
             SDL_RenderClear(tvRenderer);
 
-            if (scene == "selection_menu") {
-                DrawText(tvRenderer, "Sign Up or Sign In", 600, 300, 64, tvTextColor);
+            // Draw background image
+            if (bgTexture) {
+                SDL_RenderCopy(tvRenderer, bgTexture, NULL, NULL);
+            } else {
+                SDL_SetRenderDrawColor(tvRenderer,
+                    tvBackgroundColor.r,
+                    tvBackgroundColor.g,
+                    tvBackgroundColor.b,
+                    tvBackgroundColor.a);
+                SDL_RenderClear(tvRenderer);
             }
-            else if (scene == "sign_up") {
-                DrawText(tvRenderer, "Sign Up", 850, 300, 64, tvTextColor);
-                DrawText(tvRenderer, "Enter a username and password.", 450, 400, 64, tvTextColor);
+
+            if (scene == SELECTION_MENU) {
+                DrawText(tvRenderer, "Account Setup", 450, 50, 128, tvTextColor);
             }
-            else if (scene == "sign_in") {
-                DrawText(tvRenderer, "Sign In", 850, 300, 64, tvTextColor);
-                DrawText(tvRenderer, "Enter a username and password.", 450, 400, 64, tvTextColor);
+            else if (scene == SIGN_UP) {
+                DrawText(tvRenderer, "Create Account", 450, 50, 128, tvTextColor);
             }
-            else if (scene == "sign_up_confirm" || scene == "sign_in_confirm") {
-                DrawText(tvRenderer, "Confirm", 850, 300, 64, tvTextColor);
-                DrawText(tvRenderer, ("Username: " + username).c_str(), 450, 400, 64, tvTextColor);
-                if (showpassword) DrawText(tvRenderer, ("Password: " + password).c_str(), 450, 464, 64, tvTextColor);
-                else DrawText(tvRenderer, "Password: (hidden)", 450, 464, 64, tvTextColor);
+            else if (scene == SIGN_IN) {
+                DrawText(tvRenderer, "Logging In", 550, 50, 128, tvTextColor);
             }
-            else if (scene == "chat") {
+            else if (scene == ROOMS_LIST) {
+                DrawText(tvRenderer, "Rooms", 700, 50, 128, tvTextColor);
+            }
+            else if (scene == CHAT) {
                 DrawChatBuffer(tvRenderer, 40, 40);
-            }
-            else if (scene == "register_success") {
-                DrawText(tvRenderer, "Account created successfully!", 500, 300, 64, tvTextColor);
-                DrawText(tvRenderer, "Press A to go to the chat screen.", 250, 400, 64, tvTextColor);
-                DrawText(tvRenderer, "Press B to go back to the account screen.", 250, 500, 64, tvTextColor);
-
-                if (!serverResponse.empty())
-                    DrawText(tvRenderer, ("Debug: " + serverResponse).c_str(), 0, 1040, 32, tvTextColor);
-            }
-            else if (scene == "failed") {
-                DrawText(tvRenderer, failedReason.c_str(), 250, 300, 64, tvTextColor);
-                DrawText(tvRenderer, "Press B to go back to the account screen.", 250, 400, 64, tvTextColor);
-
-                if (!serverResponse.empty())
-                    DrawText(tvRenderer, ("Debug: " + serverResponse).c_str(), 0, 1040, 32, tvTextColor);
             }
             SDL_RenderPresent(tvRenderer);
         }
 
         // Render DRC (GamePad) Screen
         if (drcRenderer) {
-            SDL_SetRenderDrawColor(drcRenderer, drcBackgroundColor.r, drcBackgroundColor.g, drcBackgroundColor.b, drcBackgroundColor.a);
             SDL_RenderClear(drcRenderer);
 
-            if (scene != "selection_menu" && scene != "chat" && rulesPage == 0) {
-                DrawButtonWithText(drcRenderer, buttonTexture, button_left_bottom, "Back", 48);
+            // Draw background image
+            if (bgTextureDRC) {
+                SDL_RenderCopy(drcRenderer, bgTextureDRC, NULL, NULL);
+            } else {
+                SDL_SetRenderDrawColor(drcRenderer,
+                    drcBackgroundColor.r,
+                    drcBackgroundColor.g,
+                    drcBackgroundColor.b,
+                    drcBackgroundColor.a);
+                SDL_RenderClear(drcRenderer);
             }
 
-            if (scene == "selection_menu") {
-                DrawButtonWithText(drcRenderer, buttonTexture, button_middle_top, "Sign Up", 48);
-                DrawButtonWithText(drcRenderer, buttonTexture, button_middle_bottom, "Sign In", 48);
-            }
-            else if (scene == "sign_up" || scene == "sign_in") {
-                DrawButtonWithText(drcRenderer, buttonTexture, button_middle_top, "Username", 48);
-                DrawButtonWithText(drcRenderer, buttonTexture, button_middle_bottom, "Password", 48);
-                DrawButtonWithText(drcRenderer, buttonTexture, button_right_bottom, "Continue", 48);
-            }
-            else if (scene == "sign_up_confirm") {
-                DrawButtonWithText(drcRenderer, buttonTexture, button_middle_top, "Register", 48);
-                DrawButtonWithText(drcRenderer, buttonTexture, button_middle_bottom, "Show Password", 48);
-            }
-            else if (scene == "sign_in_confirm") {
-                DrawButtonWithText(drcRenderer, buttonTexture, button_middle_top, "Log In", 48);
-                DrawButtonWithText(drcRenderer, buttonTexture, button_middle_bottom, "Show Password", 48);
-            }
-            else if (scene == "chat") {
-                if (rulesPage == 1) {
-                    DrawText(drcRenderer, "Ⓨ: Next Page", 20, 20, 20, drcTextColor);
-
-                    DrawText(drcRenderer, "1. No racist, sexist, homophobic, or other", 20, 60, 20, drcTextColor);
-                    DrawText(drcRenderer, "prejudiced language or behavior, whether it's", 20, 80, 20, drcTextColor);
-                    DrawText(drcRenderer, "aimed at another user or not.", 20, 100, 20, drcTextColor);
-
-                    DrawText(drcRenderer, "2. No asking for or sharing personal info of", 20, 150, 20, drcTextColor);
-                    DrawText(drcRenderer, "yourself or anyone else. This includes name,", 20, 170, 20, drcTextColor);
-                    DrawText(drcRenderer, "age, gender, location, phone number, email", 20, 190, 20, drcTextColor);
-                    DrawText(drcRenderer, "address, or any other personally identifiable", 20, 210, 20, drcTextColor);
-                    DrawText(drcRenderer, "information. Doxxing (or the threat of doing so)", 20, 230, 20, drcTextColor);
-                    DrawText(drcRenderer, "is grounds for a ban.", 20, 250, 20, drcTextColor);
-                }
-                else if (rulesPage == 2) {
-                    DrawText(drcRenderer, "Ⓨ: Next Page", 20, 20, 20, drcTextColor);
-
-                    DrawText(drcRenderer, "3. No overly violent or sexual behavior or", 20, 60, 20, drcTextColor);
-                    DrawText(drcRenderer, "language, including threats of violence or harm", 20, 80, 20, drcTextColor);
-                    DrawText(drcRenderer, "of ANY kind. This includes threats or", 20, 100, 20, drcTextColor);
-                    DrawText(drcRenderer, "discussion of harming yourself.", 20, 120, 20, drcTextColor);
-
-                    DrawText(drcRenderer, "4. No political discussion. Usernames of", 20, 170, 20, drcTextColor);
-                    DrawText(drcRenderer, "political figures are allowed (with some", 20, 190, 20, drcTextColor);
-                    DrawText(drcRenderer, "exceptions), but any language that could incite", 20, 210, 20, drcTextColor);
-                    DrawText(drcRenderer, "arguments may get you banned.", 20, 230, 20, drcTextColor);
-
-                    DrawText(drcRenderer, "5. No impersonation of developers,", 20, 280, 20, drcTextColor);
-                    DrawText(drcRenderer, "moderators, admin, or any other Aurorachat", 20, 300, 20, drcTextColor);
-                    DrawText(drcRenderer, "staff. Additionally, ANY impersonation for the", 20, 320, 20, drcTextColor);
-                    DrawText(drcRenderer, "sake of harrassing another user is not allowed.", 20, 340, 20, drcTextColor);
-                }
-                else if (rulesPage == 3) {
-                    DrawText(drcRenderer, "Ⓨ: Close Rules", 20, 20, 20, drcTextColor);
-
-                    DrawText(drcRenderer, "6. No spamming.", 20, 60, 20, drcTextColor);
-                    DrawText(drcRenderer, "7. No hunting.", 20, 80, 20, drcTextColor);
-                    DrawText(drcRenderer, "8. No hackertron", 20, 100, 20, drcTextColor);
-
-                    DrawText(drcRenderer, "Friend code sharing is allowed, but please do", 20, 150, 20, drcTextColor);
-                    DrawText(drcRenderer, "not harrass or pressure other users for their", 20, 170, 20, drcTextColor);
-                    DrawText(drcRenderer, "friend codes.", 20, 190, 20, drcTextColor);
-
-                    DrawText(drcRenderer, "Want access to the rest of Unitendo? Join our", 20, 240, 20, drcTextColor);
-                    DrawText(drcRenderer, "official Discord server here:", 20, 260, 20, drcTextColor);
-                    DrawText(drcRenderer, "discord.gg/dCSgz7KERv", 20, 280, 20, drcTextColor);
-
-                    SDL_RenderCopy(drcRenderer, discordTexture, NULL, &discordRect);
-
-                    DrawText(drcRenderer, "We are not accepting ban appeals at this time.", 20, 455, 20, drcTextColor);
-                }
-                else {
-                    for (int i = 0; i < 5; i++) {
-                        if (i == selectedIcon) {
-                            SDL_RenderCopy(drcRenderer, aucIconsSelected[i], NULL, &aucIconsRect[i]);
-                        } else {
-                            SDL_RenderCopy(drcRenderer, aucIcons[i], NULL, &aucIconsRect[i]);
-                        }
+            if (scene == SELECTION_MENU) {
+                const int selectionMenuCount = 2;
+                        
+                for (int i = 0; i < selectionMenuCount; i++) {
+                    // Highlight selected item
+                    if (selectionMenuIndex == i) {
+                    
+                        SDL_Rect highlightRect = {
+                            0,
+                            40 * i,
+                            854,
+                            40
+                        };
+                    
+                        SDL_SetRenderDrawBlendMode(
+                            drcRenderer,
+                            SDL_BLENDMODE_BLEND
+                        );
+                    
+                        SDL_SetRenderDrawColor(
+                            drcRenderer,
+                            0, 0, 0, 180
+                        );
+                    
+                        SDL_RenderFillRect(
+                            drcRenderer,
+                            &highlightRect
+                        );
                     }
+                
+                    DrawText(
+                        drcRenderer,
+                        selectionMenu[i],
+                        20,
+                        40 * i + 4,
+                        32,
+                        drcTextColor
+                    );
+                }
+            }
+            else if (scene == SIGN_UP || scene == SIGN_IN) {
+                const int authMenuCount = 3;
+                        
+                for (int i = 0; i < authMenuCount; i++) {
+                    // Highlight selected item
+                    if (authMenuIndex == i) {
+                    
+                        SDL_Rect highlightRect = {
+                            0,
+                            40 * i,
+                            854,
+                            40
+                        };
+                    
+                        SDL_SetRenderDrawBlendMode(
+                            drcRenderer,
+                            SDL_BLENDMODE_BLEND
+                        );
+                    
+                        SDL_SetRenderDrawColor(
+                            drcRenderer,
+                            0, 0, 0, 180
+                        );
+                    
+                        SDL_RenderFillRect(
+                            drcRenderer,
+                            &highlightRect
+                        );
+                    }
+
+                    if (scene == SIGN_UP) {
+                        DrawText(
+                            drcRenderer,
+                            signUpMenu[i],
+                            20,
+                            40 * i + 4,
+                            32,
+                            drcTextColor
+                        );
+                    }
+                    else {
+                        DrawText(
+                            drcRenderer,
+                            signInMenu[i],
+                            20,
+                            40 * i + 4,
+                            32,
+                            drcTextColor
+                        );
+                    }
+                }
+            }
+            else if (scene == ROOMS_LIST) {
+                for (int i = 0; i < roomCount; i++) {
+                
+                    // Highlight selected room
+                    if (selectedRoom == i) {
+                    
+                        SDL_Rect highlightRect = {
+                            0,
+                            40 * i,
+                            854,
+                            40
+                        };
+                    
+                        SDL_SetRenderDrawBlendMode(
+                            drcRenderer,
+                            SDL_BLENDMODE_BLEND
+                        );
+                    
+                        SDL_SetRenderDrawColor(
+                            drcRenderer,
+                            0, 0, 0, 180
+                        );
+                    
+                        SDL_RenderFillRect(
+                            drcRenderer,
+                            &highlightRect
+                        );
+                    }
+                
+                    DrawText(
+                        drcRenderer,
+                        rooms[i].name,
+                        20,
+                        40 * i + 4,
+                        32,
+                        drcTextColor
+                    );
                 }
             }
             SDL_RenderPresent(drcRenderer);
@@ -570,6 +408,11 @@ int main(int argc, char **argv)
 
     if (gController)
         SDL_GameControllerClose(gController);
+
+    if (bgTexture)
+        SDL_DestroyTexture(bgTexture);
+    if (bgTextureDRC)
+        SDL_DestroyTexture(bgTextureDRC);
 
     if (drcRenderer)
         SDL_DestroyRenderer(drcRenderer);

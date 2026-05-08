@@ -27,6 +27,15 @@ struct ChatLine
     {}
 };
 
+struct Room {
+    char name[64];
+    char description[256];
+};
+
+extern Room rooms[100];
+extern int roomCount;
+extern int selectedRoom;
+
 extern std::vector<ChatLine> chatLines;
 extern int chatPosY;
 

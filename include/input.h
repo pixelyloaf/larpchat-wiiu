@@ -4,14 +4,32 @@
 #include <string>
 
 extern std::string username;
-extern std::string scene;
-extern std::string textSendType;
+extern std::string password;
 
-extern int rulesPage;
+enum textSendType {
+    type_username,
+    type_password,
+    type_message,
+    type_none
+};
 
-extern bool isThemeReversed;
+extern textSendType currentTextSendType;
+
+extern std::string currentRoom;
+
+enum Scene {
+    LOADING,
+    SELECTION_MENU,
+    SIGN_UP,
+    SIGN_IN,
+    ROOMS_LIST,
+    CHAT
+};
+
+extern Scene scene;
+
+extern int selectionMenuIndex;
+extern int authMenuIndex;
 
 void handle_button_down(const SDL_ControllerButtonEvent& e);
 void handle_event(const SDL_Event& event);
-
-bool PointInRect(int x, int y, const SDL_Rect& r);
