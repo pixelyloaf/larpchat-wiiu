@@ -111,6 +111,8 @@ void TryReceive(int *sock, SDL_Renderer* renderer, int fontSize, SDL_Color textC
                     start = end + 1;
                 }
 
+                parts.push_back(line.substr(start));
+
                 std::string username;
                 std::string message;
                 std::string room;
@@ -136,6 +138,7 @@ void TryReceive(int *sock, SDL_Renderer* renderer, int fontSize, SDL_Color textC
                         renderer,
                         username,
                         message,
+                        room,
                         avatar,
                         fontSize,
                         fontSize,

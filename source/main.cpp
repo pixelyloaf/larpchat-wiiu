@@ -24,8 +24,6 @@ std::string password = "";
 
 textSendType currentTextSendType = type_none;
 
-std::string currentRoom = "general";
-
 Scene scene = SELECTION_MENU;
 
 int fontSize = 48;
@@ -125,17 +123,20 @@ int main(int argc, char **argv)
     LoadAvatars();
 
     SDL_Texture* systemAvatar = LoadImage(tvRenderer, "romfs:/res/system.png");
-    AddChatLine(
-        tvRenderer,
-        "System",
-        "Welcome!",
-        systemAvatar,
-        fontSize,
-        fontSize,
-        tvTextColor,
-        tvTextColor,
-        maxWidth
-    );
+    for (int i = 0; i < roomCount; i++) {
+        AddChatLine(
+            tvRenderer,
+            "System",
+            "Welcome!",
+            rooms[i].name,
+            systemAvatar,
+            fontSize,
+            fontSize,
+            tvTextColor,
+            tvTextColor,
+            maxWidth
+        );
+    }
 
     Uint32 lastTicks = 0;
     const int AXIS_DEADZONE = 8000;  // deadzone for joystick
@@ -407,7 +408,7 @@ int main(int argc, char **argv)
 
                 DrawText(tvRenderer, "Move: ↑/↓", 20, 860, 64, tvTextColor);
                 DrawText(tvRenderer, "Leave: Ⓑ", 20, 930, 64, tvTextColor);
-                DrawText(tvRenderer, "Select: Ⓐ", 20, 1000, 64, tvTextColor);
+                DrawText(tvRenderer, "Send a message: Ⓐ", 20, 1000, 64, tvTextColor);
             }
             SDL_RenderPresent(tvRenderer);
         }

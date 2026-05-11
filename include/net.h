@@ -33,6 +33,8 @@ extern bool connectionLost;
 
 extern std::string authToken;
 
+extern std::string currentRoom;
+
 extern SDL_Texture* discordAvatar;
 extern SDL_Texture* defaultAvatar;
 

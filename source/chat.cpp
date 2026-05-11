@@ -8,9 +8,12 @@ Room rooms[100];
 int roomCount = 0;
 int selectedRoom = 0;
 
+std::string currentRoom = "general";
+
 void AddChatLine(SDL_Renderer* renderer,
                 const std::string& username,
                 const std::string& message,
+                const std::string& room,
                 SDL_Texture* avatar,
                 int nameFontSize,
                 int messageFontSize,
@@ -25,6 +28,7 @@ void AddChatLine(SDL_Renderer* renderer,
     line.username = username;
     line.message = message;
     line.avatarTexture = avatar;
+    line.room = room;
 
     // Username texture
     int textStartX = avatarSize + avatarPadding;
@@ -71,6 +75,9 @@ void DrawChatBuffer(SDL_Renderer* renderer, int x, int y)
 
     for (auto& line : chatLines)
     {
+        if (line.room != currentRoom)
+            continue;
+
         int w, h;
 
         // Draw avatar
