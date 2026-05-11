@@ -4,6 +4,24 @@
 
 std::string authToken = "";
 
+SDL_Texture* discordAvatar = nullptr;
+SDL_Texture* defaultAvatar = nullptr;
+
+void LoadAvatars()
+{
+    discordAvatar = LoadImage(tvRenderer, "romfs:/res/discord.png");
+    defaultAvatar = LoadImage(tvRenderer, "romfs:/res/default.png");
+}
+
+void DestroyAvatars()
+{
+    if (discordAvatar)
+        SDL_DestroyTexture(discordAvatar);
+
+    if (defaultAvatar)
+        SDL_DestroyTexture(defaultAvatar);
+}
+
 static bool SetNonBlocking(int sock)
 {
     if (sock < 0) return false;
@@ -82,40 +100,54 @@ void TryReceive(int *sock, SDL_Renderer* renderer, int fontSize, SDL_Color textC
                 std::string line = pending.substr(0, pos);
                 pending.erase(0, pos + 1);
 
-                size_t sep = line.find(':');
+                std::vector<std::string> parts;
+
+                size_t start = 0;
+                size_t end;
+
+                while ((end = line.find('|', start)) != std::string::npos)
+                {
+                    parts.push_back(line.substr(start, end - start));
+                    start = end + 1;
+                }
 
                 std::string username;
                 std::string message;
+                std::string room;
 
-                if (sep != std::string::npos)
+                if (parts.size() >= 3)
                 {
-                    username = line.substr(0, sep);
-                    message = line.substr(sep + 1);
+                    username = parts[0];
+                    message  = parts[1];
+                    room     = parts[2];
 
-                    // remove leading space in message
-                    if (!message.empty() && message[0] == ' ')
-                        message.erase(0, 1);
+                    SDL_Texture* avatar;
+
+                    if (username == "auroracross")
+                    {
+                        avatar = discordAvatar;
+                    }
+                    else
+                    {
+                        avatar = defaultAvatar;
+                    }
+
+                    AddChatLine(
+                        renderer,
+                        username,
+                        message,
+                        avatar,
+                        fontSize,
+                        fontSize,
+                        textColor,
+                        textColor,
+                        maxWidth
+                    );
                 }
                 else
                 {
-                    // fallback (system message)
-                    username = "Server";
-                    message = line;
+                    SDL_Log("Malformed message: %s", line.c_str());
                 }
-
-                SDL_Texture* avatar = LoadAvatar(renderer, "example");
-
-                AddChatLine(
-                    renderer,
-                    username,
-                    message,
-                    avatar,
-                    fontSize,
-                    fontSize,
-                    textColor,
-                    textColor,
-                    maxWidth
-                );
             }
         }
         else if (r == 0)

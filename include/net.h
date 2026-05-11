@@ -33,6 +33,12 @@ extern bool connectionLost;
 
 extern std::string authToken;
 
+extern SDL_Texture* discordAvatar;
+extern SDL_Texture* defaultAvatar;
+
+void LoadAvatars();
+void DestroyAvatars();
+
 int ConnectToTCPServer();
 void ReconnectToTCPServer();
 int ConnectToHTTPServer();

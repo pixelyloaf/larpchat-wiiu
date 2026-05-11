@@ -122,6 +122,21 @@ int main(int argc, char **argv)
     SDL_Texture* bgTexture = LoadImage(tvRenderer, "romfs:/res/bg.png");
     SDL_Texture* bgTextureDRC = LoadImage(drcRenderer, "romfs:/res/bg.png");
 
+    LoadAvatars();
+
+    SDL_Texture* systemAvatar = LoadImage(tvRenderer, "romfs:/res/system.png");
+    AddChatLine(
+        tvRenderer,
+        "System",
+        "Welcome!",
+        systemAvatar,
+        fontSize,
+        fontSize,
+        tvTextColor,
+        tvTextColor,
+        maxWidth
+    );
+
     Uint32 lastTicks = 0;
     const int AXIS_DEADZONE = 8000;  // deadzone for joystick
     const float MAX_SPEED = 1000.0f;  // pixels per second when stick is fully pushed
@@ -232,20 +247,167 @@ int main(int argc, char **argv)
                 SDL_RenderClear(tvRenderer);
             }
 
+            if (scene == SIGN_UP || scene == SIGN_IN) {
+                const int authMenuCount = 3;
+                        
+                for (int i = 0; i < authMenuCount; i++) {
+                    // Highlight selected item
+                    if (authMenuIndex == i) {
+                    
+                        SDL_Rect highlightRect = {
+                            0,
+                            180 + (60 * i),
+                            1920,
+                            56
+                        };
+                    
+                        SDL_SetRenderDrawBlendMode(
+                            tvRenderer,
+                            SDL_BLENDMODE_BLEND
+                        );
+                    
+                        SDL_SetRenderDrawColor(
+                            tvRenderer,
+                            0, 0, 0, 180
+                        );
+                    
+                        SDL_RenderFillRect(
+                            tvRenderer,
+                            &highlightRect
+                        );
+                    }
+
+                    if (scene == SIGN_UP) {
+                        DrawText(
+                            tvRenderer,
+                            signUpMenu[i],
+                            40,
+                            180 + (60 * i),
+                            48,
+                            drcTextColor
+                        );
+                    }
+                    else {
+                        DrawText(
+                            tvRenderer,
+                            signInMenu[i],
+                            40,
+                            180 + (60 * i),
+                            48,
+                            drcTextColor
+                        );
+                    }
+                }
+            }
+
             if (scene == SELECTION_MENU) {
                 DrawText(tvRenderer, "Account Setup", 450, 50, 128, tvTextColor);
+
+                DrawText(tvRenderer, "Move: ↑/↓", 20, 930, 64, tvTextColor);
+                DrawText(tvRenderer, "Select: Ⓐ", 20, 1000, 64, tvTextColor);
+
+                const int selectionMenuCount = 2;
+                        
+                for (int i = 0; i < selectionMenuCount; i++) {
+                    // Highlight selected item
+                    if (selectionMenuIndex == i) {
+                    
+                        SDL_Rect highlightRect = {
+                            0,
+                            180 + (60 * i),
+                            1920,
+                            56
+                        };
+                    
+                        SDL_SetRenderDrawBlendMode(
+                            tvRenderer,
+                            SDL_BLENDMODE_BLEND
+                        );
+                    
+                        SDL_SetRenderDrawColor(
+                            tvRenderer,
+                            0, 0, 0, 180
+                        );
+                    
+                        SDL_RenderFillRect(
+                            tvRenderer,
+                            &highlightRect
+                        );
+                    }
+                
+                    DrawText(
+                        tvRenderer,
+                        selectionMenu[i],
+                        40,
+                        180 + (60 * i),
+                        48,
+                        tvTextColor
+                    );
+                }
             }
             else if (scene == SIGN_UP) {
                 DrawText(tvRenderer, "Create Account", 450, 50, 128, tvTextColor);
+
+                DrawText(tvRenderer, "Move: ↑/↓", 20, 930, 64, tvTextColor);
+                DrawText(tvRenderer, "Select: Ⓐ", 20, 1000, 64, tvTextColor);
             }
             else if (scene == SIGN_IN) {
                 DrawText(tvRenderer, "Logging In", 550, 50, 128, tvTextColor);
+
+                DrawText(tvRenderer, "Move: ↑/↓", 20, 930, 64, tvTextColor);
+                DrawText(tvRenderer, "Select: Ⓐ", 20, 1000, 64, tvTextColor);
             }
             else if (scene == ROOMS_LIST) {
                 DrawText(tvRenderer, "Rooms", 700, 50, 128, tvTextColor);
+
+                DrawText(tvRenderer, "Move: ↑/↓", 20, 860, 64, tvTextColor);
+                DrawText(tvRenderer, "Log out: Ⓑ", 20, 930, 64, tvTextColor);
+                DrawText(tvRenderer, "Select: Ⓐ", 20, 1000, 64, tvTextColor);
+
+                for (int i = 0; i < roomCount; i++) {
+
+                    // Highlight selected room
+                    if (selectedRoom == i) {
+
+                        SDL_Rect highlightRect = {
+                            0,
+                            180 + (60 * i),
+                            1920,
+                            56
+                        };
+
+                        SDL_SetRenderDrawBlendMode(
+                            tvRenderer,
+                            SDL_BLENDMODE_BLEND
+                        );
+
+                        SDL_SetRenderDrawColor(
+                            tvRenderer,
+                            0, 0, 0, 180
+                        );
+
+                        SDL_RenderFillRect(
+                            tvRenderer,
+                            &highlightRect
+                        );
+                    }
+
+                    DrawText(
+                        tvRenderer,
+                        rooms[i].name,
+                        40,
+                        180 + (60 * i),
+                        48,
+                        tvTextColor
+                    );
+                }
             }
             else if (scene == CHAT) {
                 DrawChatBuffer(tvRenderer, 40, 40);
+
+                DrawText(tvRenderer, "Move: ↑/↓", 20, 860, 64, tvTextColor);
+                DrawText(tvRenderer, "Leave: Ⓑ", 20, 930, 64, tvTextColor);
+                DrawText(tvRenderer, "Select: Ⓐ", 20, 1000, 64, tvTextColor);
             }
             SDL_RenderPresent(tvRenderer);
         }
@@ -359,6 +521,15 @@ int main(int argc, char **argv)
                 }
             }
             else if (scene == ROOMS_LIST) {
+                DrawText(
+                    drcRenderer,
+                    ("Logged in as: " + username).c_str(),
+                    10,
+                    420,
+                    48,
+                    drcTextColor
+                );
+
                 for (int i = 0; i < roomCount; i++) {
                 
                     // Highlight selected room
@@ -397,6 +568,34 @@ int main(int argc, char **argv)
                     );
                 }
             }
+            else if (scene == CHAT) {
+                DrawText(
+                    drcRenderer,
+                    currentRoom.c_str(),
+                    20,
+                    20,
+                    64,
+                    drcTextColor
+                );
+
+                DrawText(
+                    drcRenderer,
+                    ("Logged in as: " + username).c_str(),
+                    10,
+                    380,
+                    48,
+                    drcTextColor
+                );
+
+                DrawText(
+                    drcRenderer,
+                    "Press A to type a message...",
+                    10,
+                    440,
+                    32,
+                    drcTextColor
+                );
+            }
             SDL_RenderPresent(drcRenderer);
         }
     }
@@ -414,6 +613,9 @@ int main(int argc, char **argv)
     if (bgTextureDRC)
         SDL_DestroyTexture(bgTextureDRC);
 
+    if (systemAvatar)
+        SDL_DestroyTexture(systemAvatar);
+
     if (drcRenderer)
         SDL_DestroyRenderer(drcRenderer);
     if (drcWindow)
@@ -423,6 +625,7 @@ int main(int argc, char **argv)
     if (tvWindow)
         SDL_DestroyWindow(tvWindow);
 
+    DestroyAvatars();
     IMG_Quit();
     FreeFonts();
     TTF_Quit();
