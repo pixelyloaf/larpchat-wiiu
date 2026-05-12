@@ -1,6 +1,7 @@
 #include "input.h"
 #include "chat.h"
 #include "net.h"
+#include "storage.h"
 
 int selectionMenuIndex = 0;
 int authMenuIndex = 0;
@@ -95,9 +96,13 @@ void handle_button_down(const SDL_ControllerButtonEvent& e)
                 
                     case 2:
                         if (scene == SIGN_UP && create_account(username.c_str(), password.c_str())) {
+                            SaveLogin(username.c_str(), password.c_str());
+
                             fetch_rooms();
                             scene = ROOMS_LIST;
                         } else if (scene == SIGN_IN && login_account(username.c_str(), password.c_str())) {
+                            SaveLogin(username.c_str(), password.c_str());
+
                             fetch_rooms();
                             scene = ROOMS_LIST;
                         } else {
