@@ -53,8 +53,4 @@ void AddChatLine(SDL_Renderer* renderer,
                 SDL_Color messageColor,
                 int maxWidth);
 
-void DrawChatBuffer(SDL_Renderer* renderer, int x, int y);
-
-void FreeChatTextures();
-
-void RebuildChatTextures(SDL_Renderer* renderer, int nameFontSize, int messageFontSize, SDL_Color nameColor, SDL_Color messageColor, int maxWidth);
+void DrawChatBuffer(SDL_Renderer* renderer, int x, int y, float scaleX, float scaleY);

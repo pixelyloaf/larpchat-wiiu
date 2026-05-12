@@ -1,5 +1,6 @@
 #include "chat.h"
 #include "font.h"
+#include "scale.h"
 
 std::vector<ChatLine> chatLines;
 int chatPosY = 0;
@@ -66,10 +67,11 @@ void AddChatLine(SDL_Renderer* renderer,
     chatLines.push_back(line);
 }
 
-void DrawChatBuffer(SDL_Renderer* renderer, int x, int y)
+void DrawChatBuffer(SDL_Renderer* renderer, int x, int y, float scaleX, float scaleY)
 {
-    const int avatarSize = 128;
-    const int avatarPadding = 8;
+    const int avatarSize = SF(128);
+    const int avatarPadding = SF(8);
+    const int messageSpacing = SF(32);
 
     int drawY = y + chatPosY;
 
@@ -93,75 +95,13 @@ void DrawChatBuffer(SDL_Renderer* renderer, int x, int y)
         SDL_Rect nameRect = { textStartX, drawY, w, h };
         SDL_RenderCopy(renderer, line.nameTexture, nullptr, &nameRect);
 
-        drawY += h - 32; // spacing between avatar and message
+        drawY += h - messageSpacing; // spacing between avatar and message
 
         // Draw message
         SDL_QueryTexture(line.messageTexture, nullptr, nullptr, &w, &h);
         SDL_Rect msgRect = { textStartX, drawY, w, h };
         SDL_RenderCopy(renderer, line.messageTexture, nullptr, &msgRect);
-
+        
         drawY += h; // spacing between new messages
-    }
-}
-
-void FreeChatTextures()
-{
-    for (auto& line : chatLines)
-    {
-        if (line.nameTexture)
-            SDL_DestroyTexture(line.nameTexture);
-
-        if (line.messageTexture)
-            SDL_DestroyTexture(line.messageTexture);
-
-        if (line.avatarTexture)
-            SDL_DestroyTexture(line.avatarTexture);
-    }
-
-    chatLines.clear();
-}
-
-void RebuildChatTextures(SDL_Renderer* renderer,
-                        int nameFontSize,
-                        int messageFontSize,
-                        SDL_Color nameColor,
-                        SDL_Color messageColor,
-                        int maxWidth)
-{
-    for (auto& line : chatLines)
-    {
-        // Destroy old textures
-        if (line.nameTexture)
-            SDL_DestroyTexture(line.nameTexture);
-
-        if (line.messageTexture)
-            SDL_DestroyTexture(line.messageTexture);
-
-        // Rebuild username
-        line.nameTexture = DrawTextToTexture(
-            renderer,
-            line.username.c_str(),
-            nameFontSize,
-            nameColor,
-            maxWidth
-        );
-
-        // Rebuild message
-        line.messageTexture = DrawTextToTexture(
-            renderer,
-            line.message.c_str(),
-            messageFontSize,
-            messageColor,
-            maxWidth - 60
-        );
-
-        // Update sizes
-        int w, h;
-
-        SDL_QueryTexture(line.nameTexture, nullptr, nullptr, &w, &h);
-        line.nameHeight = h;
-
-        SDL_QueryTexture(line.messageTexture, nullptr, nullptr, &w, &h);
-        line.messageHeight = h;
     }
 }

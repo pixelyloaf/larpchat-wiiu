@@ -14,6 +14,7 @@
 #include "net.h"
 #include "input.h"
 #include "storage.h"
+#include "scale.h"
 
 // Used in multiple files, so declared here
 // -------------------------
@@ -86,12 +87,20 @@ int main(int argc, char **argv)
     // TV Window (primary display)
     tvWindow = SDL_CreateWindow("TV", 
         SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        1280, 720,  // Use 720p resolution
+        1280, 720,  // Window resolution (will be scaled to fit TV)
         SDL_WINDOW_FULLSCREEN | SDL_WINDOW_WIIU_TV_ONLY);
     if (tvWindow) {
         tvRenderer = SDL_CreateRenderer(tvWindow, -1,
             SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     }
+
+    int tvWidth = 0;
+    int tvHeight = 0;
+
+    SDL_GetRendererOutputSize(tvRenderer, &tvWidth, &tvHeight);
+
+    float scaleX = tvWidth / 1920.0f;
+    float scaleY = tvHeight / 1080.0f;
 
     // GamePad Window
     drcWindow = SDL_CreateWindow("DRC",
@@ -130,8 +139,8 @@ int main(int argc, char **argv)
             "Welcome!",
             rooms[i].name,
             systemAvatar,
-            fontSize,
-            fontSize,
+            SF(fontSize),
+            SF(fontSize),
             tvTextColor,
             tvTextColor,
             maxWidth
@@ -230,7 +239,7 @@ int main(int argc, char **argv)
         }
 
         // Handle incoming messages
-        TryReceive(&sock, tvRenderer, fontSize, tvTextColor, maxWidth);
+        TryReceive(&sock, tvRenderer, SF(fontSize), tvTextColor, maxWidth);
 
         // Render TV Screen
         if (tvRenderer) {
@@ -257,9 +266,9 @@ int main(int argc, char **argv)
                     
                         SDL_Rect highlightRect = {
                             0,
-                            180 + (60 * i),
-                            1920,
-                            56
+                            SY(180 + (60 * i)),
+                            tvWidth,
+                            SY(56)
                         };
                     
                         SDL_SetRenderDrawBlendMode(
@@ -282,9 +291,9 @@ int main(int argc, char **argv)
                         DrawText(
                             tvRenderer,
                             signUpMenu[i],
-                            40,
-                            180 + (60 * i),
-                            48,
+                            SX(40),
+                            SY(180 + (60 * i)),
+                            SF(48),
                             drcTextColor
                         );
                     }
@@ -292,9 +301,9 @@ int main(int argc, char **argv)
                         DrawText(
                             tvRenderer,
                             signInMenu[i],
-                            40,
-                            180 + (60 * i),
-                            48,
+                            SX(40),
+                            SY(180 + (60 * i)),
+                            SF(48),
                             drcTextColor
                         );
                     }
@@ -302,10 +311,10 @@ int main(int argc, char **argv)
             }
 
             if (scene == SELECTION_MENU) {
-                DrawText(tvRenderer, "Account Setup", 450, 50, 128, tvTextColor);
+                DrawText(tvRenderer, "Account Setup", SX(450), SY(50), SF(128), tvTextColor);
 
-                DrawText(tvRenderer, "Move: ↑/↓", 20, 930, 64, tvTextColor);
-                DrawText(tvRenderer, "Select: Ⓐ", 20, 1000, 64, tvTextColor);
+                DrawText(tvRenderer, "Move: ↑/↓", SX(20), SY(930), SF(64), tvTextColor);
+                DrawText(tvRenderer, "Select: Ⓐ", SX(20), SY(1000), SF(64), tvTextColor);
 
                 const int selectionMenuCount = 2;
                         
@@ -315,9 +324,9 @@ int main(int argc, char **argv)
                     
                         SDL_Rect highlightRect = {
                             0,
-                            180 + (60 * i),
-                            1920,
-                            56
+                            SY(180 + (60 * i)),
+                            tvWidth,
+                            SY(56)
                         };
                     
                         SDL_SetRenderDrawBlendMode(
@@ -339,31 +348,31 @@ int main(int argc, char **argv)
                     DrawText(
                         tvRenderer,
                         selectionMenu[i],
-                        40,
-                        180 + (60 * i),
-                        48,
+                        SX(40),
+                        SY(180 + (60 * i)),
+                        SF(48),
                         tvTextColor
                     );
                 }
             }
             else if (scene == SIGN_UP) {
-                DrawText(tvRenderer, "Create Account", 450, 50, 128, tvTextColor);
+                DrawText(tvRenderer, "Create Account", SX(450), SY(50), SF(128), tvTextColor);
 
-                DrawText(tvRenderer, "Move: ↑/↓", 20, 930, 64, tvTextColor);
-                DrawText(tvRenderer, "Select: Ⓐ", 20, 1000, 64, tvTextColor);
+                DrawText(tvRenderer, "Move: ↑/↓", SX(20), SY(930), SF(64), tvTextColor);
+                DrawText(tvRenderer, "Select: Ⓐ", SX(20), SY(1000), SF(64), tvTextColor);
             }
             else if (scene == SIGN_IN) {
-                DrawText(tvRenderer, "Logging In", 550, 50, 128, tvTextColor);
+                DrawText(tvRenderer, "Logging In", SX(550), SY(50), SF(128), tvTextColor);
 
-                DrawText(tvRenderer, "Move: ↑/↓", 20, 930, 64, tvTextColor);
-                DrawText(tvRenderer, "Select: Ⓐ", 20, 1000, 64, tvTextColor);
+                DrawText(tvRenderer, "Move: ↑/↓", SX(20), SY(930), SF(64), tvTextColor);
+                DrawText(tvRenderer, "Select: Ⓐ", SX(20), SY(1000), SF(64), tvTextColor);
             }
             else if (scene == ROOMS_LIST) {
-                DrawText(tvRenderer, "Rooms", 700, 50, 128, tvTextColor);
+                DrawText(tvRenderer, "Rooms", SX(700), SY(50), SF(128), tvTextColor);
 
-                DrawText(tvRenderer, "Move: ↑/↓", 20, 860, 64, tvTextColor);
-                DrawText(tvRenderer, "Log out: Ⓑ", 20, 930, 64, tvTextColor);
-                DrawText(tvRenderer, "Select: Ⓐ", 20, 1000, 64, tvTextColor);
+                DrawText(tvRenderer, "Move: ↑/↓", SX(20), SY(860), SF(64), tvTextColor);
+                DrawText(tvRenderer, "Log out: Ⓑ", SX(20), SY(930), SF(64), tvTextColor);
+                DrawText(tvRenderer, "Select: Ⓐ", SX(20), SY(1000), SF(64), tvTextColor);
 
                 for (int i = 0; i < roomCount; i++) {
 
@@ -372,9 +381,9 @@ int main(int argc, char **argv)
 
                         SDL_Rect highlightRect = {
                             0,
-                            180 + (60 * i),
-                            1920,
-                            56
+                            SY(180 + (60 * i)),
+                            tvWidth,
+                            SY(56)
                         };
 
                         SDL_SetRenderDrawBlendMode(
@@ -396,19 +405,19 @@ int main(int argc, char **argv)
                     DrawText(
                         tvRenderer,
                         rooms[i].name,
-                        40,
-                        180 + (60 * i),
-                        48,
+                        SX(40),
+                        SY(180 + (60 * i)),
+                        SF(48),
                         tvTextColor
                     );
                 }
             }
             else if (scene == CHAT) {
-                DrawChatBuffer(tvRenderer, 40, 40);
+                DrawChatBuffer(tvRenderer, SX(40), SY(40), scaleX, scaleY);
 
-                DrawText(tvRenderer, "Move: ↑/↓", 20, 860, 64, tvTextColor);
-                DrawText(tvRenderer, "Leave: Ⓑ", 20, 930, 64, tvTextColor);
-                DrawText(tvRenderer, "Send a message: Ⓐ", 20, 1000, 64, tvTextColor);
+                DrawText(tvRenderer, "Move: ↑/↓", SX(20), SY(860), SF(64), tvTextColor);
+                DrawText(tvRenderer, "Leave: Ⓑ", SX(20), SY(930), SF(64), tvTextColor);
+                DrawText(tvRenderer, "Send a message: Ⓐ", SX(20), SY(1000), SF(64), tvTextColor);
             }
             SDL_RenderPresent(tvRenderer);
         }
