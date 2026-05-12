@@ -31,5 +31,7 @@ extern Scene scene;
 extern int selectionMenuIndex;
 extern int authMenuIndex;
 
+extern bool showResponse;
+
 void handle_button_down(const SDL_ControllerButtonEvent& e);
 void handle_event(const SDL_Event& event);

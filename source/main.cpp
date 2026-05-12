@@ -60,10 +60,6 @@ int main(int argc, char **argv)
     IMG_Init(IMG_INIT_PNG);
 
     mkdir("fs:/vol/external01/wiiu/apps/aurorachatforWiiU", 0777);
-    mkdir("fs:/vol/external01/wiiu/apps/aurorachatforWiiU/avatars", 0777);
-
-    std::string serverResponse = "";
-    std::string failedReason = "";
 
     // Keyboard Text Input Buffer
     std::string textBuffer = "";
@@ -114,7 +110,7 @@ int main(int argc, char **argv)
 
     SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
 
-    if (LoadLogin(username, password)) {
+    if (LoadLogin(username, password) && !username.empty() && !password.empty()) {
         if (login_account(username.c_str(), password.c_str())) {
             fetch_rooms();
             scene = ROOMS_LIST;
@@ -312,6 +308,10 @@ int main(int argc, char **argv)
 
             if (scene == SELECTION_MENU) {
                 DrawText(tvRenderer, "Account Setup", SX(450), SY(50), SF(128), tvTextColor);
+
+                if (showResponse) {
+                    DrawText(tvRenderer, ("Error: " + authError).c_str(), SX(20), SY(860), SF(64), tvTextColor);
+                }
 
                 DrawText(tvRenderer, "Move: ↑/↓", SX(20), SY(930), SF(64), tvTextColor);
                 DrawText(tvRenderer, "Select: Ⓐ", SX(20), SY(1000), SF(64), tvTextColor);

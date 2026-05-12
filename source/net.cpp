@@ -3,6 +3,9 @@
 #include "image.h"
 
 std::string authToken = "";
+std::string authError = "";
+
+bool showResponse = false;
 
 SDL_Texture* discordAvatar = nullptr;
 SDL_Texture* defaultAvatar = nullptr;
@@ -220,26 +223,34 @@ std::string send_post_request(const std::string& endpoint, const std::string& bo
 
 bool create_account(const std::string& username, const std::string& password)
 {
-    std::string body =
-        username + "|" + password;
+    std::string body = username + "|" + password;
 
-    std::string response =
-        send_post_request("/api/signup", body);
+    std::string response = send_post_request("/api/signup", body);
+
+    authError = response;
 
     if (response.empty())
         return false;
 
+    // trim whitespace/newlines
     while (!response.empty() &&
-            (response.back() == '\n' ||
-            response.back() == '\r' ||
-            response.back() == ' '))
+        (response.back() == '\n' ||
+         response.back() == '\r' ||
+         response.back() == ' '))
     {
         response.pop_back();
     }
 
-    if (!response.empty() && response.back() == '|')
-        response.pop_back();
+    // reject errors
+    if (response == "ERR_MISSING_INPUT" ||
+        response == "ERR_USER_USED" ||
+        response == "ERR_BANNED")
+    {
+        showResponse = true;
+        return false;
+    }
 
+    showResponse = false;
     authToken = response;
 
     return true;
@@ -247,26 +258,33 @@ bool create_account(const std::string& username, const std::string& password)
 
 bool login_account(const std::string& username, const std::string& password)
 {
-    std::string body =
-        username + "|" + password;
+    std::string body = username + "|" + password;
 
-    std::string response =
-        send_post_request("/api/login", body);
+    std::string response = send_post_request("/api/login", body);
+
+    authError = response;
 
     if (response.empty())
         return false;
 
+    // trim whitespace/newlines
     while (!response.empty() &&
-            (response.back() == '\n' ||
-            response.back() == '\r' ||
-            response.back() == ' '))
+        (response.back() == '\n' ||
+         response.back() == '\r' ||
+         response.back() == ' '))
     {
         response.pop_back();
     }
 
-    if (!response.empty() && response.back() == '|')
-        response.pop_back();
+    // reject errors
+    if (response == "ERR_WRONG_PASS" ||
+        response == "ERR_BANNED")
+    {
+        showResponse = true;
+        return false;
+    }
 
+    showResponse = false;
     authToken = response;
 
     return true;

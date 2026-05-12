@@ -26,30 +26,30 @@ void handle_button_down(const SDL_ControllerButtonEvent& e)
         }
         else if (scene == SELECTION_MENU) {
             if (e.button == SDL_CONTROLLER_BUTTON_DPAD_UP) {
-            
+
                 selectionMenuIndex--;
-            
+
                 if (selectionMenuIndex < 0)
                     selectionMenuIndex = 1;
             }
-        
+
             else if (e.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN) {
-            
+
                 selectionMenuIndex++;
-            
+
                 if (selectionMenuIndex > 1)
                     selectionMenuIndex = 0;
             }
-        
+
             else if (e.button == SDL_CONTROLLER_BUTTON_A) {
-            
+
                 switch (selectionMenuIndex) {
-                
+
                     case 0:
                         scene = SIGN_UP;
                         authMenuIndex = 0;
                         break;
-                
+
                     case 1:
                         scene = SIGN_IN;
                         authMenuIndex = 0;
@@ -59,25 +59,25 @@ void handle_button_down(const SDL_ControllerButtonEvent& e)
         }
         else if (scene == SIGN_UP || scene == SIGN_IN) {
             if (e.button == SDL_CONTROLLER_BUTTON_DPAD_UP) {
-            
+
                 authMenuIndex--;
-            
+
                 if (authMenuIndex < 0)
                     authMenuIndex = 2;
             }
-        
+
             else if (e.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN) {
-            
+
                 authMenuIndex++;
-            
+
                 if (authMenuIndex > 2)
                     authMenuIndex = 0;
             }
-        
+
             else if (e.button == SDL_CONTROLLER_BUTTON_A) {
-            
+
                 switch (authMenuIndex) {
-                
+
                     case 0:
                         currentTextSendType = type_username;
                         SDL_WiiUSetSWKBDInitialText(username.c_str());
@@ -85,7 +85,7 @@ void handle_button_down(const SDL_ControllerButtonEvent& e)
                         SDL_StartTextInput();
                         authMenuIndex = 0;
                         break;
-                
+
                     case 1:
                         currentTextSendType = type_password;
                         SDL_WiiUSetSWKBDInitialText(password.c_str());
@@ -93,22 +93,42 @@ void handle_button_down(const SDL_ControllerButtonEvent& e)
                         SDL_WiiUSetSWKBDPasswordMode(SDL_WIIU_SWKBD_PASSWORD_MODE_HIDE);
                         SDL_StartTextInput();
                         break;
-                
+
                     case 2:
-                        if (scene == SIGN_UP && create_account(username.c_str(), password.c_str())) {
-                            SaveLogin(username.c_str(), password.c_str());
-
-                            fetch_rooms();
-                            scene = ROOMS_LIST;
-                        } else if (scene == SIGN_IN && login_account(username.c_str(), password.c_str())) {
-                            SaveLogin(username.c_str(), password.c_str());
-
-                            fetch_rooms();
-                            scene = ROOMS_LIST;
-                        } else {
-                            scene = SELECTION_MENU;
-                        }
+                    if (username.empty() || password.empty()) {
                         break;
+                    }
+
+                    if (scene == SIGN_UP)
+                    {
+                        bool ok = create_account(username.c_str(), password.c_str());
+
+                        if (!ok)
+                        {
+                            scene = SELECTION_MENU;
+                            break;
+                        }
+
+                        SaveLogin(username.c_str(), password.c_str());
+                        fetch_rooms();
+                        scene = ROOMS_LIST;
+                    }
+                    else if (scene == SIGN_IN)
+                    {
+                        bool ok = login_account(username.c_str(), password.c_str());
+
+                        if (!ok)
+                        {
+                            scene = SELECTION_MENU;
+                            break;
+                        }
+
+                        SaveLogin(username.c_str(), password.c_str());
+                        fetch_rooms();
+                        scene = ROOMS_LIST;
+                    }
+
+                    break;
                 }
             }
             else if (e.button == SDL_CONTROLLER_BUTTON_B) {
@@ -117,24 +137,24 @@ void handle_button_down(const SDL_ControllerButtonEvent& e)
         }
         else if (scene == ROOMS_LIST) {
             if (e.button == SDL_CONTROLLER_BUTTON_DPAD_UP) {
-            
+
                 if (selectedRoom > 0)
                     selectedRoom--;
             }
-        
+
             else if (e.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN) {
-            
+
                 if (selectedRoom < roomCount - 1)
                     selectedRoom++;
             }
-        
+
             else if (e.button == SDL_CONTROLLER_BUTTON_A) {
-            
+
                 currentRoom = rooms[selectedRoom].name;
-            
+
                 scene = CHAT;
             }
-        
+
             else if (e.button == SDL_CONTROLLER_BUTTON_B) {
             
                 scene = SELECTION_MENU;

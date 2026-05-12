@@ -32,6 +32,9 @@ extern std::string clientVersion;
 extern bool connectionLost;
 
 extern std::string authToken;
+extern std::string authError;
+
+extern bool showResponse;
 
 extern std::string currentRoom;
 
