@@ -180,6 +180,23 @@ void TryReceive(int *sock, SDL_Renderer* renderer, int fontSize, SDL_Color textC
     }
 }
 
+bool SendAll(int sock, const char* data, size_t len)
+{
+    size_t total = 0;
+
+    while (total < len)
+    {
+        ssize_t sent = send(sock, data + total, len - total, 0);
+
+        if (sent <= 0)
+            return false;
+
+        total += sent;
+    }
+
+    return true;
+}
+
 std::string send_post_request(const std::string& endpoint, const std::string& body)
 {
     int sock = ConnectToHTTPServer();
@@ -198,7 +215,11 @@ std::string send_post_request(const std::string& endpoint, const std::string& bo
         "\r\n" +
         body;
 
-    send(sock, request.c_str(), request.size(), 0);
+    if (!SendAll(sock, request.c_str(), request.size()))
+    {
+        close(sock);
+        return "";
+    }
 
     std::string response;
 
@@ -251,6 +272,16 @@ bool create_account(const std::string& username, const std::string& password)
     }
 
     showResponse = false;
+
+    while (!response.empty() &&
+        (response.back() == '\n' ||
+        response.back() == '\r' ||
+        response.back() == ' '  ||
+        response.back() == '|'))
+    {
+        response.pop_back();
+    }
+
     authToken = response;
 
     return true;
@@ -285,6 +316,16 @@ bool login_account(const std::string& username, const std::string& password)
     }
 
     showResponse = false;
+
+    while (!response.empty() &&
+        (response.back() == '\n' ||
+        response.back() == '\r' ||
+        response.back() == ' '  ||
+        response.back() == '|'))
+    {
+        response.pop_back();
+    }
+
     authToken = response;
 
     return true;
