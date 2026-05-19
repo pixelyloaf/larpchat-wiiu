@@ -65,6 +65,25 @@ void AddChatLine(SDL_Renderer* renderer,
     line.messageHeight = h;
 
     chatLines.push_back(line);
+
+    // Auto-scroll to bottom
+    const int CHAT_VIEW_HEIGHT = 600;
+    
+    int totalHeight = 0;
+    
+    for (auto& l : chatLines)
+    {
+        if (l.room != currentRoom)
+            continue;
+    
+        totalHeight += (l.nameHeight - SF(32));
+        totalHeight += l.messageHeight;
+    }
+    
+    chatPosY = CHAT_VIEW_HEIGHT - totalHeight;
+    
+    if (chatPosY > 0)
+        chatPosY = 0;
 }
 
 void DrawChatBuffer(SDL_Renderer* renderer, int x, int y, float scaleX, float scaleY)
